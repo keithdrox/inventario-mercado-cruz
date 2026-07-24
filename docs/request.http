@@ -1,0 +1,26 @@
+GET /api/v1/productos?page=0&size=10&sort=nombre, asc      -> 200 ok
+{
+    "success".: true,
+    "data".:[
+        {"id":1, "nombre" : "Arroz flor", "categoria": "Granos",
+         "stock": 120, "precio": 0.95, "activo":true,
+         "creadoEn": "2026-07-24T09:15:00-05:00" }
+    ],
+    "message": "Listado obtenido correctamente",
+    "meta: {"page": 0, "size": 10, "totalElements": 57, "totalPages": 6 }
+}
+
+POST /api/v1/productos (body invalido)                      -> 400 Bad Request
+{
+    "success": false,
+    "data": null,
+    "message": "Error de validacion",
+    "errors": [
+        {"field": "nombre", "message": "no debe estar vacio" },
+        {"field": "precio", "message": "debe ser mayor o igual a 0.01" }
+    ]
+}
+
+DELETE /api/v1/productos/9999 (inexistente)             -> 404 Not Found
+GET sin token                                           -> 401 Unauthorized
+POST con token de ROLE_USER                             -> 403 Forbidden
