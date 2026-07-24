@@ -9,7 +9,6 @@
 \usepackage{float}
 \usepackage{titlesec}
 \usepackage{listings}
-
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{amsmath}
@@ -37,7 +36,6 @@
 % --- PORTADA ---
 \begin{titlepage}
 \begin{center}
-    \includegraphics[width=0.25\textwidth]{logo-uteq.png} \\[1cm]
     {\large \textbf{UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO}} \\[0.5cm]
     {\large \textbf{FACULTAD DE CIENCIAS DE LA COMPUTACIÓN Y DISEÑO DIGITAL}} \\[0.5cm]
     {\large \textbf{CARRERA DE SOFTWARE}} \\[2cm]
@@ -52,7 +50,7 @@
     \href{https://github.com/keithdrox/inventario-mercado-cruz}{\texttt{https://github.com/keithdrox/inventario-mercado-cruz}} \\[1cm]
     
     \textbf{DOCENTE:}\\[0.5cm]
-    ING.GUERRERO ULLOA GLEISTON CICERON\\[1cm]
+    ING. GUERRERO ULLOA GLEISTON CICERON\\[1cm]
     
     \textbf{MATERIA:}\\[0.5cm]
     APLICACIONES WEB - A - [5to Nivel] \\[1cm]
@@ -62,4 +60,78 @@
     2026
 \end{center}
 \end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introducción}
+El presente informe detalla el diseño e implementación del módulo de gestión de inventario para el Mercado Central del Municipio de Quevedo. El sistema se expone mediante una API REST desarrollada con Spring Boot 3 y Java 21, siguiendo un esquema estructurado de controlador, servicio y repositorio. Se implementan funcionalidades clave como validación de datos, borrado lógico, seguridad basada en JSON Web Tokens (JWT) \cite{jwt}, y un mecanismo de caché utilizando Redis. Todo el entorno está orquestado mediante Docker Compose para garantizar la reproducibilidad y facilidad de ejecución.
+
+\section{Arquitectura y Modelo de Datos}
+La solución se basa en una arquitectura por capas bien definida, separando las responsabilidades de cada componente para mantener un diseño limpio y mantenible \cite{cleanarch}. 
+
+\subsection{Capas de la Aplicación}
+\begin{itemize}
+    \item \textbf{Controladores:} Exponen los endpoints REST y gestionan las peticiones HTTP. 
+    \item \textbf{Servicios:} Contienen la lógica de negocio, reglas de validación adicionales y orquestan la interacción con los repositorios y la caché.
+    \item \textbf{Repositorios:} Punto de acceso a los datos, extendiendo de \texttt{JpaRepository}.
+    \item \textbf{DTOs y Entidades:} Separación clara entre el modelo interno y los objetos expuestos al cliente (\texttt{ProductoRequest}, \texttt{ProductoResponse}, \texttt{ApiResponse}).
+\end{itemize}
+
+\subsection{Modelo de Datos}
+El esquema se crea dinámicamente con DDL a través del contenedor PostgreSQL:
+
+\begin{lstlisting}[language=SQL, caption=Esquema de base de datos]
+CREATE TABLE usuarios (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    rol VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE productos (
+    id BIGSERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    categoria VARCHAR(50) NOT NULL,
+    stock INTEGER NOT NULL CHECK (stock >= 0),
+    precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0.01),
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+\end{lstlisting}
+
+\section{Implementación de Requisitos}
+
+\subsection{Listado Paginado}
+El endpoint \texttt{GET /api/v1/productos} devuelve una lista paginada de productos activos. Spring Data JPA facilita la paginación inyectando \texttt{Pageable}. La respuesta se envuelve en una estructura estándar JSON que incluye metadatos (\texttt{totalElements}, \texttt{totalPages}).
+
+\subsection{Creación Validada}
+Para la creación de productos mediante \texttt{POST}, se implementa validación a nivel de servidor utilizando \texttt{jakarta.validation} como \texttt{@NotBlank}, \texttt{@Min}, y \texttt{@DecimalMin}. 
+Un \texttt{@RestControllerAdvice} intercepta excepciones y construye una respuesta estructurada estilo Problem Details \cite{problemdetails}, devolviendo estado HTTP 400.
+
+\subsection{Eliminación Lógica (Soft Delete)}
+Al eliminar mediante \texttt{DELETE}, se realiza un borrado lógico actualizando el campo \texttt{activo} a \texttt{false}. Si el producto no existe, lanza una \texttt{ResourceNotFoundException} y retorna 404.
+
+\subsection{Cache-Aside con Redis}
+Se integra Redis utilizando el patrón cache-aside:
+\begin{itemize}
+    \item \textbf{Lectura:} Anotación \texttt{@Cacheable} en el listado paginado. 
+    \item \textbf{Invalidación:} Anotación \texttt{@CacheEvict(allEntries=true)} en creación y eliminación para limpiar la caché.
+\end{itemize}
+
+\subsection{Seguridad con JSON Web Tokens (JWT)}
+Los endpoints están protegidos por Spring Security.
+\begin{itemize}
+    \item \texttt{GET} exige al menos el rol \texttt{ROLE\_USER}.
+    \item \texttt{POST} y \texttt{DELETE} exigen \texttt{ROLE\_ADMIN}.
+\end{itemize}
+Ante una petición sin token, se devuelve HTTP 401. Si el rol es insuficiente, HTTP 403.
+
+\section{Conclusión}
+La API desarrollada cumple con los requerimientos técnicos y estándares modernos de desarrollo, garantizando reproducibilidad y solidez gracias a la contenedorización, seguridad JWT y caché con Redis.
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
 \end{document}
