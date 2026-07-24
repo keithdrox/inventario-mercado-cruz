@@ -1,3 +1,10 @@
+CREATE TABLE usuarios (
+    id          BIGSERIAL       PRIMARY KEY,
+    username    VARCHAR(50)     NOT NULL UNIQUE,
+    password    VARCHAR(255)    NOT NULL,
+    rol         VARCHAR(20)     NOT NULL
+);
+
 CREATE TABLE productos (
     id          BIGSERIAL       PRIMARY KEY,
     nombre      VARCHAR(100)    NOT NULL,
@@ -5,5 +12,5 @@ CREATE TABLE productos (
     stock       INTEGER         NOT NULL CHECK (stock >= 0),
     precio      DECIMAL(10,2)   NOT NULL CHECK (precio >= 0.01),
     activo      BOOLEAN         NOT NULL DEFAULT TRUE,
-    creando_en  TIMESTAMPTZ     NOT NULL DEFAULT now()
-)
+    creado_en   TIMESTAMPTZ     NOT NULL DEFAULT now()
+);

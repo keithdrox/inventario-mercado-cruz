@@ -1,0 +1,77 @@
+### Obtener token ROLE_USER
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "usuario",
+  "password": "password"
+}
+
+> {% client.global.set("user_token", response.body.data.token); %}
+
+### Obtener token ROLE_ADMIN
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password"
+}
+
+> {% client.global.set("admin_token", response.body.data.token); %}
+
+### 1. Listado paginado (y 4. Cache-aside y 5. Seguridad)
+# Exige ROLE_USER. La primera vez va a BD, la segunda a Redis.
+GET http://localhost:8080/api/v1/productos?page=0&size=10&sort=nombre,asc
+Authorization: Bearer {{user_token}}
+
+### 2. Creacion validada (Exito)
+# Exige ROLE_ADMIN y limpia la cache.
+POST http://localhost:8080/api/v1/productos
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "nombre": "Arroz",
+  "categoria": "Granos",
+  "stock": 100,
+  "precio": 1.50
+}
+
+### 2. Creacion validada (Fallo 400 - Validation)
+POST http://localhost:8080/api/v1/productos
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "nombre": "",
+  "categoria": "Granos",
+  "stock": -5,
+  "precio": 0.00
+}
+
+### 3. Eliminacion logica y 404 (Exito)
+# Reemplazar el ID por uno existente. Limpia la cache.
+DELETE http://localhost:8080/api/v1/productos/1
+Authorization: Bearer {{admin_token}}
+
+### 3. Eliminacion logica y 404 (Fallo 404)
+# Intenta eliminar el mismo ID o uno que no existe
+DELETE http://localhost:8080/api/v1/productos/9999
+Authorization: Bearer {{admin_token}}
+
+### 5. Seguridad (Fallo 401 - Sin token)
+GET http://localhost:8080/api/v1/productos
+
+### 5. Seguridad (Fallo 403 - Rol Insuficiente)
+# Usuario ROLE_USER intenta hacer POST
+POST http://localhost:8080/api/v1/productos
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "nombre": "Cacao",
+  "categoria": "Granos",
+  "stock": 10,
+  "precio": 2.50
+}
